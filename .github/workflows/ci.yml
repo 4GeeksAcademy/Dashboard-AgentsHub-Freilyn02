@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-agents:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      # App runtime
+      FLASK_HOST: 0.0.0.0
+      FLASK_PORT: 3000
+      FLASK_DEBUG: "false"
+
+      # Nova (onboarding rate limit)
+      ONBOARDING_LIMIT_PER_MINUTE: "120"
+      ONBOARDING_WINDOW_SECONDS: "60"
+
+      # Atlas (payments webhook connector)
+      PAYMENTS_WEBHOOK_TIMEOUT_SECONDS: "15"
+      PAYMENTS_WEBHOOK_MAX_RETRIES: "3"
+      PAYMENTS_WEBHOOK_BACKOFF_BASE_SECONDS: "1"
+      PAYMENTS_WEBHOOK_EXECUTOR_WORKERS: "4"
+
+      # Echo (SMTP connector) - simulated values for CI
+      SMTP_HOST: smtp.example.test
+      SMTP_PORT: "587"
+      SMTP_USER: ci-user
+      SMTP_PASS: ci-pass
+      SMTP_USE_TLS: "true"
+      SMTP_USE_SSL: "false"
+      SMTP_TIMEOUT_SECONDS: "15"
+      SMTP_RETRY_LIMIT: "5"
+      SMTP_BACKOFF_BASE_SECONDS: "1"
+      SMTP_EXECUTOR_WORKERS: "4"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flask ruff
+
+      - name: Run local validation script (clean + lint + build + tests)
+        run: |
+          chmod +x scripts/validate_local.sh
+          ./scripts/validate_local.sh
+
+      - name: Run unit tests explicitly
+        run: python -m unittest discover -s tests -v
