@@ -1,16 +1,16 @@
-# Freily Agent - Product And UX Specifications
+# Zyro AGENT - Product And UX Specifications
 
 ## 1. Product Overview
 
-Freily Agent is an internal administration dashboard for operating and supervising AI agents inside a SaaS-style orchestration environment. The interface is implemented as a single HTML entry point with simulated SPA navigation, hardcoded datasets, reusable modal behavior, and a native light/dark theme toggle.
+Zyro AGENT is an internal administration dashboard for operating and supervising AI agents inside a SaaS-style orchestration environment. The interface is implemented as a single HTML entry point with simulated SPA navigation, hardcoded datasets, reusable modal behavior, and a native light/dark theme toggle.
 
 The product is positioned as a control center for monitoring agent activity, managing users and contracts, reviewing skills, and inspecting operational errors.
 
 ## 2. Current Product Naming
 
-- Product name in the interface: **Freily Agent**
-- Sidebar brand label: **Freily Agent**
-- Header title: **Freily Agent**
+- Product name in the interface: **Zyro AGENT**
+- Sidebar brand label: **Zyro AGENT**
+- Header title: **Zyro AGENT**
 
 ## 3. Technical Constraints
 
@@ -106,9 +106,9 @@ Current content:
 - Columns: User, Role, Assigned Agent, Status, Actions.
 - Five hardcoded users.
 - Status values are represented as flat badges using the official states:
-	- Active
-	- Inactive
-	- Failing
+  * Active
+  * Inactive
+  * Failing
 
 ### 7.3. Agent Management
 
@@ -136,11 +136,11 @@ Current content:
 - Columns: Skill, Agent, Owner User, Version, Status, Actions.
 - Skills are rendered as independent flat badges.
 - Current mock skills include:
-	- Document Reading
-	- Calendar Management
-	- Intent Classification
-	- Email Triage
-	- Mobile Concierge
+  * Document Reading
+  * Calendar Management
+  * Intent Classification
+  * Email Triage
+  * Mobile Concierge
 
 ### 7.5. Agent Contracts
 
@@ -151,10 +151,10 @@ Current content:
 - Responsive table.
 - Columns: Contract ID, Agent, Account User, Plan, Renewal, Actions.
 - Current canonical agents for this section:
-	- Nova
-	- Atlas
-	- CryptoBot
-	- Arom
+  * Nova
+  * Atlas
+  * CryptoBot
+  * Arom
 
 Interactive behavior:
 
@@ -170,10 +170,10 @@ Current content:
 - Responsive table rendered from a JavaScript array (`errorLogEntries`).
 - Columns: Timestamp, Agent, User, Level, Message, Actions.
 - Current mock agents in this section:
-	- Nova
-	- Atlas
-	- CryptoBot
-	- Arom
+  * Nova
+  * Atlas
+  * CryptoBot
+  * Arom
 
 Interactive behavior:
 
@@ -191,7 +191,7 @@ Interactive behavior:
 ### 8.2. Header
 
 - Dynamic formatted date label.
-- Main title: Freily Agent.
+- Main title: Zyro AGENT.
 - Compact theme toggle button.
 
 ### 8.3. Metric Card
@@ -229,9 +229,9 @@ Official project states:
 
 - Centered overlay container.
 - Shared close controls:
-	- explicit close button
-	- close icon
-	- backdrop click
+  * explicit close button
+  * close icon
+  * backdrop click
 
 ### 8.9. Theme Toggle
 
@@ -286,20 +286,20 @@ Clicking `Reset Hotfix Status`:
 
 ## 10. Data Consistency Rules
 
-- Product name must remain **Freily Agent** in visible branding.
+- Product name must remain **Zyro AGENT** in visible branding.
 - The theme system must remain root-class driven through `dark`.
 - Status taxonomy must remain restricted to Active, Inactive, and Failing where standardized badges are used.
 - Contracts and error logs should keep the agreed mock agent set when consistency is required:
-	- Nova
-	- Atlas
-	- CryptoBot
-	- Arom
+  * Nova
+  * Atlas
+  * CryptoBot
+  * Arom
 
 ## 11. Acceptance Criteria
 
 ### 11.1. Branding
 
-- The visible application branding must read **Freily Agent** in the sidebar and main header.
+- The visible application branding must read **Zyro AGENT** in the sidebar and main header.
 
 ### 11.2. Visual System
 
