@@ -1,8 +1,6 @@
 import os
 import smtplib
-import socket
 import ssl
-import sys
 
 
 def env_bool(name, default):
@@ -24,6 +22,7 @@ def main():
         ("SMTP_USER", user),
         ("SMTP_PASS", password),
     ) if not value]
+
     if missing:
         print(f"[error] Missing environment variables: {', '.join(missing)}")
         return 1
@@ -50,7 +49,7 @@ def main():
         message = smtp_error.smtp_error.decode("utf-8", errors="replace") if isinstance(smtp_error.smtp_error, bytes) else str(smtp_error.smtp_error)
         print(f"[error] SMTP response error code={code} message={message}")
         return 2
-    except (smtplib.SMTPException, socket.timeout, OSError, ValueError) as error:
+    except (TimeoutError, smtplib.SMTPException, OSError, ValueError) as error:
         print(f"[error] SMTP test failed: {error}")
         return 3
 

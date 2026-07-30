@@ -1,29 +1,28 @@
+import sys
+
 try:
     # try to import flask, or return error if has not been installed
-    from flask import Flask
-    from flask import jsonify
-    from flask import request
-    from flask import send_from_directory
+    from flask import Flask, jsonify, request, send_from_directory
 except ImportError:
     print("You don't have Flask installed, run `$ pip3 install flask` and try again")
-    exit(1)
+    sys.exit(1)
 
-from concurrent.futures import ThreadPoolExecutor
-from email.message import EmailMessage
 import json
-import os, subprocess, time
+import os
 import smtplib
-import socket
 import ssl
+import subprocess
 import threading
-import uuid
+import time
 import urllib.error
 import urllib.request
+import uuid
+from concurrent.futures import ThreadPoolExecutor
+from email.message import EmailMessage
 
 static_file_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), './')
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 #disable cache
-
 
 def _env_int(name, default):
     value = os.getenv(name)
@@ -57,13 +56,11 @@ smtp_executor = ThreadPoolExecutor(max_workers=SMTP_EXECUTOR_WORKERS)
 smtp_jobs = {}
 smtp_jobs_lock = threading.Lock()
 
-
 def _get_client_ip():
     forwarded_for = request.headers.get("X-Forwarded-For", "")
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
     return request.remote_addr or "unknown"
-
 
 def _check_rate_limit(client_ip, now_ts):
     with onboarding_rate_limit_lock:
@@ -73,15 +70,12 @@ def _check_rate_limit(client_ip, now_ts):
                 "count": 0,
                 "reset_at": now_ts + ONBOARDING_WINDOW_SECONDS,
             }
-
         bucket["count"] += 1
         onboarding_rate_limit_store[client_ip] = bucket
-
         retry_after = max(1, int(bucket["reset_at"] - now_ts))
         remaining = max(0, ONBOARDING_LIMIT_PER_MINUTE - bucket["count"])
         allowed = bucket["count"] <= ONBOARDING_LIMIT_PER_MINUTE
         return allowed, retry_after, remaining
-
 
 def _post_json_with_timeout(url, payload):
     request_data = json.dumps(payload).encode("utf-8")
@@ -94,11 +88,9 @@ def _post_json_with_timeout(url, payload):
         headers=request_headers,
         method="POST",
     )
-
     with urllib.request.urlopen(outbound_request, timeout=PAYMENTS_WEBHOOK_TIMEOUT_SECONDS) as response:
         response_body = response.read().decode("utf-8")
         return response.getcode(), response_body
-
 
 def _run_payments_webhook_job(job_id, webhook_url, connector_payload):
     with payments_webhook_jobs_lock:
@@ -117,7 +109,6 @@ def _run_payments_webhook_job(job_id, webhook_url, connector_payload):
                     payments_webhook_jobs[job_id]["response_status_code"] = status_code
                     payments_webhook_jobs[job_id]["response_body"] = response_body
                 return
-
             last_error = f"Non-2xx response: {status_code}"
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as connector_error:
             last_error = str(connector_error)
@@ -132,9 +123,7 @@ def _run_payments_webhook_job(job_id, webhook_url, connector_payload):
         payments_webhook_jobs[job_id]["attempts"] = PAYMENTS_WEBHOOK_MAX_RETRIES + 1
         payments_webhook_jobs[job_id]["warning"] = "Timeout in payments webhook connector"
         payments_webhook_jobs[job_id]["error"] = last_error
-
     print(f"[warning] Timeout in payments webhook connector for job {job_id}: {last_error}")
-
 
 def _load_smtp_config():
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
@@ -148,30 +137,23 @@ def _load_smtp_config():
         "timeout_seconds": int(os.getenv("SMTP_TIMEOUT_SECONDS", "15")),
     }
 
-
 def _parse_smtp_error(error):
     smtp_code = None
     smtp_message = str(error)
-
     if isinstance(error, smtplib.SMTPResponseException):
         smtp_code = int(error.smtp_code)
         if isinstance(error.smtp_error, bytes):
             smtp_message = error.smtp_error.decode("utf-8", errors="replace")
         else:
             smtp_message = str(error.smtp_error)
-
     return smtp_code, smtp_message
-
 
 def _is_non_retryable_smtp_error(error, smtp_code):
     if isinstance(error, smtplib.SMTPAuthenticationError):
         return True
     if isinstance(error, smtplib.SMTPNotSupportedError):
         return True
-    if smtp_code in (530, 534, 535, 550, 551, 553, 554):
-        return True
-    return False
-
+    return smtp_code in (530, 534, 535, 550, 551, 553, 554)
 
 def _smtp_connect(config):
     timeout_seconds = config["timeout_seconds"]
@@ -180,15 +162,12 @@ def _smtp_connect(config):
         return smtplib.SMTP_SSL(config["host"], config["port"], timeout=timeout_seconds, context=ssl_context)
     return smtplib.SMTP(config["host"], config["port"], timeout=timeout_seconds)
 
-
 def _smtp_login_if_needed(client, config):
     if config["use_tls"] and not config["use_ssl"]:
         ssl_context = ssl.create_default_context()
         client.starttls(context=ssl_context)
-
     if config["user"] and config["password"]:
         client.login(config["user"], config["password"])
-
 
 def _send_smtp_message(config, from_email, to_email, subject, body_text):
     message = EmailMessage()
@@ -201,7 +180,6 @@ def _send_smtp_message(config, from_email, to_email, subject, body_text):
         smtp_client.ehlo()
         _smtp_login_if_needed(smtp_client, config)
         smtp_client.send_message(message)
-
 
 def _run_smtp_job(job_id, email_payload):
     with smtp_jobs_lock:
@@ -222,21 +200,18 @@ def _run_smtp_job(job_id, email_payload):
                 subject=email_payload["subject"],
                 body_text=email_payload["body"],
             )
-
             with smtp_jobs_lock:
                 smtp_jobs[job_id]["status"] = "completed"
                 smtp_jobs[job_id]["completed_at"] = int(time.time())
                 smtp_jobs[job_id]["attempts"] = attempt + 1
             return
-        except (smtplib.SMTPException, socket.timeout, OSError, ValueError) as smtp_error:
+        except (TimeoutError, smtplib.SMTPException, OSError, ValueError) as smtp_error:
             last_error_code, last_error_message = _parse_smtp_error(smtp_error)
             non_retryable = _is_non_retryable_smtp_error(smtp_error, last_error_code)
-
             print(
                 f"[smtp][attempt {attempt + 1}] code={last_error_code} "
                 f"non_retryable={non_retryable} error={last_error_message}"
             )
-
             if non_retryable:
                 break
 
@@ -253,7 +228,6 @@ def _run_smtp_job(job_id, email_payload):
             "message": last_error_message,
             "non_retryable": non_retryable,
         }
-
     print(
         f"[warning] SMTP retry limit exceeded for job {job_id}. "
         f"code={last_error_code} non_retryable={non_retryable} error={last_error_message}"
@@ -265,13 +239,12 @@ def serve_dir_directory_index():
     if os.path.exists("app.py"):
         # if app.py exists we use the render function
         out = subprocess.Popen(['python3','app.py'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout,stderr = out.communicate()
+        stdout, _stderr = out.communicate()
         return stdout if out.returncode == 0 else f"<pre style='color: red;'>{stdout.decode('utf-8')}</pre>"
     if os.path.exists("index.html"):
         return send_from_directory(static_file_dir, 'index.html')
     else:
         return "<h1 align='center'>404</h1><h2 align='center'>Missing index.html file</h2><p align='center'><img src='https://github.com/4GeeksAcademy/html-hello/blob/main/.vscode/rigo-baby.jpeg?raw=true' /></p>"
-
 
 @app.route('/api/onboarding/register', methods=['POST'])
 def onboarding_register():
@@ -308,11 +281,11 @@ def onboarding_register():
     response.headers["X-RateLimit-Remaining"] = str(remaining)
     return response, 200
 
-
 @app.route('/api/payments/webhook/connector', methods=['POST'])
 def payments_webhook_connector():
     payload = request.get_json(silent=True) or {}
     webhook_url = payload.get("webhook_url")
+
     if not webhook_url:
         return jsonify({
             "status": "error",
@@ -354,7 +327,6 @@ def payments_webhook_connector():
         }
     }), 202
 
-
 @app.route('/api/payments/webhook/connector/<job_id>', methods=['GET'])
 def payments_webhook_connector_job_status(job_id):
     with payments_webhook_jobs_lock:
@@ -368,7 +340,6 @@ def payments_webhook_connector_job_status(job_id):
 
     return jsonify(job), 200
 
-
 @app.route('/api/email/smtp/test', methods=['POST'])
 def smtp_test_connection():
     config = _load_smtp_config()
@@ -376,6 +347,7 @@ def smtp_test_connection():
         field_name for field_name in ("host", "user", "password")
         if not config[field_name]
     ]
+
     if missing:
         return jsonify({
             "status": "error",
@@ -399,7 +371,7 @@ def smtp_test_connection():
                 "timeout_seconds": config["timeout_seconds"],
             },
         }), 200
-    except (smtplib.SMTPException, socket.timeout, OSError, ValueError) as smtp_error:
+    except (TimeoutError, smtplib.SMTPException, OSError, ValueError) as smtp_error:
         smtp_code, smtp_message = _parse_smtp_error(smtp_error)
         return jsonify({
             "status": "error",
@@ -410,12 +382,12 @@ def smtp_test_connection():
             },
         }), 502
 
-
 @app.route('/api/email/send', methods=['POST'])
 def smtp_send_email():
     payload = request.get_json(silent=True) or {}
     required_fields = ["to_email", "subject", "body"]
     missing = [field_name for field_name in required_fields if not payload.get(field_name)]
+
     if missing:
         return jsonify({
             "status": "error",
@@ -425,6 +397,7 @@ def smtp_send_email():
 
     config = _load_smtp_config()
     from_email = payload.get("from_email") or config.get("user")
+
     if not from_email:
         return jsonify({
             "status": "error",
@@ -467,7 +440,6 @@ def smtp_send_email():
             "base_delay_seconds": SMTP_BACKOFF_BASE_SECONDS,
         },
     }), 202
-
 
 @app.route('/api/email/send/<job_id>', methods=['GET'])
 def smtp_send_email_status(job_id):
