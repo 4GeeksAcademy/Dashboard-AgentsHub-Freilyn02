@@ -53,9 +53,11 @@ class TestAtlasPaymentsWebhookRetryPolicy(unittest.TestCase):
                 "attempts": 0,
             }
 
-        with patch.object(server, "_post_json_with_timeout", side_effect=TimeoutError("mock timeout")) as mock_post:
-            with patch.object(server.time, "sleep") as mock_sleep:
-                server._run_payments_webhook_job(job_id, "http://mock-payments", {"event": "payment.confirmed"})
+        with (
+            patch.object(server, "_post_json_with_timeout", side_effect=TimeoutError("mock timeout")) as mock_post,
+            patch.object(server.time, "sleep") as mock_sleep,
+        ):
+            server._run_payments_webhook_job(job_id, "http://mock-payments", {"event": "payment.confirmed"})
 
         expected_attempts = server.PAYMENTS_WEBHOOK_MAX_RETRIES + 1
         self.assertEqual(mock_post.call_count, expected_attempts)
@@ -95,10 +97,12 @@ class TestEchoSmtpAuthFailureHandling(unittest.TestCase):
 
         auth_error = smtplib.SMTPAuthenticationError(535, b"Authentication failed")
 
-        with patch.object(server, "_send_smtp_message", side_effect=auth_error) as mock_send:
-            with patch.object(server.time, "sleep") as mock_sleep:
-                with patch("builtins.print") as mock_print:
-                    server._run_smtp_job(job_id, email_payload)
+        with (
+            patch.object(server, "_send_smtp_message", side_effect=auth_error) as mock_send,
+            patch.object(server.time, "sleep") as mock_sleep,
+            patch("builtins.print") as mock_print,
+        ):
+            server._run_smtp_job(job_id, email_payload)
 
         self.assertEqual(mock_send.call_count, 1)
         mock_sleep.assert_not_called()
